@@ -1,4 +1,4 @@
-# pitch-detection [![test](https://github.com/audiojs/pitch-detection/actions/workflows/test.yml/badge.svg)](https://github.com/audiojs/pitch-detection/actions/workflows/test.yml) [![npm](https://img.shields.io/npm/v/pitch-detection)](https://www.npmjs.com/package/pitch-detection) [![MIT](https://img.shields.io/badge/MIT-%E0%A5%90-white)](https://github.com/krishnized/license)
+# @audio/pitch [![test](https://github.com/audiojs/pitch-detection/actions/workflows/test.yml/badge.svg)](https://github.com/audiojs/pitch-detection/actions/workflows/test.yml) [![npm](https://img.shields.io/npm/v/@audio/pitch)](https://www.npmjs.com/package/@audio/pitch) [![MIT](https://img.shields.io/badge/MIT-%E0%A5%90-white)](https://github.com/krishnized/license)
 
 Pitch, chroma, chord and key detection. YIN, McLeod, pYIN, HPS, cepstrum, SWIPE, autocorrelation, AMDF, NNLS chroma, chord templates, Krumhansl-Schmuckler.
 
@@ -34,14 +34,14 @@ Pitch, chroma, chord and key detection. YIN, McLeod, pYIN, HPS, cepstrum, SWIPE,
 ## Install
 
 ```
-npm install pitch-detection
+npm install @audio/pitch
 ```
 
 
 ## Usage
 
 ```js
-import { yin, mcleod, chroma, chord, key } from 'pitch-detection'
+import { yin, mcleod, chroma, chord, key } from '@audio/pitch'
 
 let fs = 44100
 let frame = new Float32Array(2048)  // fill from your audio source
@@ -74,7 +74,7 @@ for (let i = 0; i + 2048 <= samples.length; i += hop) {
 **Full pipeline** — pitch → chroma → chord → key on a sequence of frames:
 
 ```js
-import { chroma, chord, smoothChords, key } from 'pitch-detection'
+import { chroma, chord, smoothChords, key } from '@audio/pitch'
 
 let frames = []
 for (let i = 0; i + 4096 <= samples.length; i += 2048) {
@@ -106,7 +106,7 @@ Time-domain algorithms (YIN, McLeod, pYIN, autocorrelation, AMDF) accept any buf
 **de Cheveigné & Kawahara, 2002.** The reference algorithm for monophonic pitch estimation. Most cited, most tested, most robust.
 
 ```js
-import yin from 'pitch-detection/yin.js'
+import yin from '@audio/pitch/yin.js'
 
 let result = yin(samples, { fs: 44100 })
 ```
@@ -127,7 +127,7 @@ let result = yin(samples, { fs: 44100 })
 **McLeod & Wyvill, 2005.** Normalized square difference with smarter peak picking. Handles smaller windows — good for vibrato and fast pitch changes.
 
 ```js
-import mcleod from 'pitch-detection/mcleod.js'
+import mcleod from '@audio/pitch/mcleod.js'
 
 let result = mcleod(samples, { fs: 44100 })
 ```
@@ -148,7 +148,7 @@ let result = mcleod(samples, { fs: 44100 })
 **Mauch & Dixon, 2014.** Probabilistic YIN — runs YIN at multiple thresholds weighted by a Beta(2, 18) prior, producing a distribution over candidate pitches instead of a single hard pick. More robust than YIN on ambiguous frames.
 
 ```js
-import pyin from 'pitch-detection/pyin.js'
+import pyin from '@audio/pitch/pyin.js'
 
 let result = pyin(samples, { fs: 44100 })
 // → { freq: 440.1, clarity: 0.92, candidates: [{ freq: 440.1, prob: 0.85 }, ...] }
@@ -170,7 +170,7 @@ let result = pyin(samples, { fs: 44100 })
 Normalized autocorrelation — the simplest pitch estimator. Educational baseline.
 
 ```js
-import autocorrelation from 'pitch-detection/autocorrelation.js'
+import autocorrelation from '@audio/pitch/autocorrelation.js'
 
 let result = autocorrelation(samples, { fs: 44100 })
 ```
@@ -191,7 +191,7 @@ let result = autocorrelation(samples, { fs: 44100 })
 **Ross et al., 1974.** Average Magnitude Difference Function — the classical predecessor to YIN. Measures average absolute difference between a signal and its delayed copy; minima indicate periodicity.
 
 ```js
-import amdf from 'pitch-detection/amdf.js'
+import amdf from '@audio/pitch/amdf.js'
 
 let result = amdf(samples, { fs: 44100 })
 ```
@@ -217,7 +217,7 @@ let result = amdf(samples, { fs: 44100 })
 **Schroeder, 1968.** Harmonic Product Spectrum — multiplies the spectrum by its downsampled copies so that harmonic peaks align at the fundamental. Robust to the missing-fundamental problem.
 
 ```js
-import hps from 'pitch-detection/hps.js'
+import hps from '@audio/pitch/hps.js'
 
 let result = hps(samples, { fs: 44100 })
 ```
@@ -242,7 +242,7 @@ let result = hps(samples, { fs: 44100 })
 **Noll, 1967.** Real cepstrum — $c(\tau) = \text{IFFT}(\log |\text{FFT}(x)|)$. A peak at quefrency $\tau$ corresponds to period $\tau$ in the time domain.
 
 ```js
-import cepstrum from 'pitch-detection/cepstrum.js'
+import cepstrum from '@audio/pitch/cepstrum.js'
 
 let result = cepstrum(samples, { fs: 44100 })
 ```
@@ -267,7 +267,7 @@ let result = cepstrum(samples, { fs: 44100 })
 Simplified single-window form: uses one FFT instead of the multi-resolution loudness pyramid of the original paper — sufficient for stationary windows.
 
 ```js
-import swipe from 'pitch-detection/swipe.js'
+import swipe from '@audio/pitch/swipe.js'
 
 let result = swipe(samples, { fs: 44100 })
 ```
@@ -294,7 +294,7 @@ let result = swipe(samples, { fs: 44100 })
 **Fujishima, 1999 (PCP) / Mauch & Dixon, 2010 (NNLS).** Chroma feature — a 12-D vector where each bin holds the energy attributed to one pitch class (C, C#, ..., B).
 
 ```js
-import chroma from 'pitch-detection/chroma.js'
+import chroma from '@audio/pitch/chroma.js'
 
 // PCP — classical spectral folding
 let c = chroma(samples, { fs: 44100 })
@@ -335,7 +335,7 @@ Pitch dictionary covers MIDI 24–96 (C1–C7) with configurable harmonics per t
 **Fujishima, 1999 (templates) / Viterbi smoothing.** Classifies chroma frames as one of 24 major/minor triads via cosine similarity with binary templates.
 
 ```js
-import chord, { TEMPLATES, smooth as smoothChords } from 'pitch-detection/chord.js'
+import chord, { TEMPLATES, smooth as smoothChords } from '@audio/pitch/chord.js'
 
 // single frame
 let c = chord(chromaVec)
@@ -379,7 +379,7 @@ Exported array of 24 chord templates: `{ root, quality, label, vec }` where `vec
 **Krumhansl & Schmuckler.** Detects musical key from chroma via Pearson correlation against 24 rotated major/minor key profiles (Krumhansl-Kessler probe-tone ratings).
 
 ```js
-import key, { KK_MAJOR, KK_MINOR } from 'pitch-detection/key.js'
+import key, { KK_MAJOR, KK_MINOR } from '@audio/pitch/key.js'
 
 let k = key(chromaVec)
 // → { tonic: 0, mode: 'major', label: 'C', confidence: 0.85, scores: [...] }
