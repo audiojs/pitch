@@ -1,0 +1,43 @@
+{
+  "name": "@audio/pitch-cepstrum",
+  "version": "1.0.0",
+  "description": "Cepstrum pitch detection (Noll, 1967)",
+  "type": "module",
+  "sideEffects": false,
+  "main": "cepstrum.js",
+  "exports": {
+    ".": "./cepstrum.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "cepstrum.js"
+  ],
+  "dependencies": {
+    "fourier-transform": "^2.2.0"
+  },
+  "keywords": [
+    "audio",
+    "dsp",
+    "pitch",
+    "pitch-detection",
+    "f0",
+    "cepstrum"
+  ],
+  "license": "MIT",
+  "author": "Dmitry Iv. <dfcreative@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/audiojs/pitch-detection.git",
+    "directory": "packages/pitch-cepstrum"
+  },
+  "homepage": "https://github.com/audiojs/pitch-detection/tree/main/packages/pitch-cepstrum",
+  "bugs": {
+    "url": "https://github.com/audiojs/pitch-detection/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

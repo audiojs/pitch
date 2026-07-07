@@ -1,11 +1,12 @@
-export { default as yin } from './yin.js'
-export { default as mcleod } from './mcleod.js'
-export { default as autocorrelation } from './autocorrelation.js'
-export { default as amdf } from './amdf.js'
-export { default as hps } from './hps.js'
-export { default as cepstrum } from './cepstrum.js'
-export { default as swipe } from './swipe.js'
-export { default as pyin } from './pyin.js'
-export { default as chroma } from './chroma.js'
-export { default as chord, TEMPLATES, smooth as smoothChords } from './chord.js'
-export { default as key, KK_MAJOR, KK_MINOR } from './key.js'
+// @audio/pitch — pitch detection umbrella re-exporting every @audio/pitch-* atom.
+// For smaller bundles, depend directly on the individual atom.
+// Chroma / chord / key detection moved to @audio/mir.
+
+export { default as yin } from '@audio/pitch-yin'
+export { default as mcleod } from '@audio/pitch-mcleod'
+export { default as pyin } from '@audio/pitch-pyin'
+export { default as hps } from '@audio/pitch-hps'
+export { default as cepstrum } from '@audio/pitch-cepstrum'
+export { default as swipe } from '@audio/pitch-swipe'
+export { default as autocorrelation } from '@audio/pitch-autocorrelation'
+export { default as amdf } from '@audio/pitch-amdf'
