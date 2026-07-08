@@ -17,7 +17,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/audiojs/pitch-detection.git"
+    "url": "git+https://github.com/audiojs/pitch.git"
   },
   "keywords": [
     "pitch",
@@ -48,9 +48,9 @@
   "author": "Dmitry Iv. <dfcreative@gmail.com>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/audiojs/pitch-detection/issues"
+    "url": "https://github.com/audiojs/pitch/issues"
   },
-  "homepage": "https://github.com/audiojs/pitch-detection#readme",
+  "homepage": "https://github.com/audiojs/pitch#readme",
   "engines": {
     "node": ">=18"
   },

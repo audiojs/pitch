@@ -24,12 +24,12 @@
   "author": "Dmitry Iv. <dfcreative@gmail.com>",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/audiojs/pitch-detection.git",
+    "url": "git+https://github.com/audiojs/pitch.git",
     "directory": "packages/pitch-amdf"
   },
-  "homepage": "https://github.com/audiojs/pitch-detection/tree/main/packages/pitch-amdf",
+  "homepage": "https://github.com/audiojs/pitch/tree/main/packages/pitch-amdf",
   "bugs": {
-    "url": "https://github.com/audiojs/pitch-detection/issues"
+    "url": "https://github.com/audiojs/pitch/issues"
   },
   "engines": {
     "node": ">=18"

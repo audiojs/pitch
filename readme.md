@@ -1,4 +1,4 @@
-# @audio/pitch [![test](https://github.com/audiojs/pitch-detection/actions/workflows/test.yml/badge.svg)](https://github.com/audiojs/pitch-detection/actions/workflows/test.yml) [![npm](https://img.shields.io/npm/v/@audio/pitch)](https://www.npmjs.com/package/@audio/pitch) [![MIT](https://img.shields.io/badge/MIT-%E0%A5%90-white)](https://github.com/krishnized/license)
+# @audio/pitch [![test](https://github.com/audiojs/pitch/actions/workflows/test.yml/badge.svg)](https://github.com/audiojs/pitch/actions/workflows/test.yml) [![npm](https://img.shields.io/npm/v/@audio/pitch)](https://www.npmjs.com/package/@audio/pitch) [![MIT](https://img.shields.io/badge/MIT-%E0%A5%90-white)](https://github.com/krishnized/license)
 
 Pitch, chroma, chord and key detection. YIN, McLeod, pYIN, HPS, cepstrum, SWIPE, autocorrelation, AMDF, NNLS chroma, chord templates, Krumhansl-Schmuckler.
 
@@ -424,7 +424,7 @@ let k2 = key(chromaFrames)
 ## See also
 
 - [fourier-transform](https://github.com/scijs/fourier-transform) — FFT used by spectral algorithms
-- [beat-detection](https://github.com/audiojs/beat-detection) — onset detection, tempo estimation, beat tracking
+- [beat](https://github.com/audiojs/beat) — onset detection, tempo estimation, beat tracking
 - [digital-filter](https://github.com/audiojs/digital-filter) — filter design and processing
-- [time-stretch](https://github.com/audiojs/time-stretch) — time stretching and pitch shifting
-- [pitch-shift](https://github.com/audiojs/pitch-shift) — pitch shifting algorithms
+- [stretch](https://github.com/audiojs/stretch) — time stretching and pitch shifting
+- [shift](https://github.com/audiojs/shift) — pitch shifting algorithms
