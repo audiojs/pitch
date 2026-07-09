@@ -1,18 +1,18 @@
 {
   "name": "@audio/pitch-yin",
-  "version": "1.0.0",
-  "description": "YIN pitch detection (de Cheveign\u00e9 & Kawahara, 2002)",
+  "version": "1.0.1",
+  "description": "YIN pitch detection (de Cheveigné & Kawahara, 2002)",
   "type": "module",
   "sideEffects": false,
   "main": "yin.js",
   "exports": {
     ".": "./yin.js",
     "./package.json": "./package.json",
-    "./audio-module": "./audio-module.js"
+    "./atom": "./atom.js"
   },
   "files": [
     "yin.js",
-    "audio-module.js"
+    "atom.js"
   ],
   "keywords": [
     "audio",
@@ -39,5 +39,5 @@
   "publishConfig": {
     "access": "public"
   },
-  "audio-module": "./audio-module.js"
+  "atom": "./atom.js"
 }

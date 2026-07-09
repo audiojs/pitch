@@ -1,4 +1,4 @@
-// audio-module manifest — YIN as an analyzer: audio in, no audio out, pitch/clarity
+// atom manifest — YIN as an analyzer: audio in, no audio out, pitch/clarity
 // emitted per analysis frame via ctx.emit.
 
 import yin from './yin.js'
