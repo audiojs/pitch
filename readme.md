@@ -1,10 +1,10 @@
 # @audio/pitch [![test](https://github.com/audiojs/pitch/actions/workflows/test.yml/badge.svg)](https://github.com/audiojs/pitch/actions/workflows/test.yml) [![npm](https://img.shields.io/npm/v/@audio/pitch)](https://www.npmjs.com/package/@audio/pitch) [![MIT](https://img.shields.io/badge/MIT-%E0%A5%90-white)](https://github.com/krishnized/license)
 
-Pitch, chroma, chord and key detection. YIN, McLeod, pYIN, HPS, cepstrum, SWIPE, autocorrelation, AMDF, NNLS chroma, chord templates, Krumhansl-Schmuckler.
+Pitch detection (F0 estimation). YIN, McLeod, pYIN, autocorrelation, AMDF, HPS, cepstrum, SWIPE.
 
 <table><tr><td valign="top">
 
-### Pitch
+### Time-domain
 
 **[YIN](#yin)** — cumulative mean normalized difference<br>
 **[McLeod](#mcleod)** — normalized square difference (MPM)<br>
@@ -14,21 +14,15 @@ Pitch, chroma, chord and key detection. YIN, McLeod, pYIN, HPS, cepstrum, SWIPE,
 
 </td><td valign="top">
 
-### Spectral pitch
+### Spectral
 
 **[HPS](#hps)** — harmonic product spectrum<br>
 **[Cepstrum](#cepstrum)** — real cepstrum peak picking<br>
 **[SWIPE](#swipe)** — sawtooth waveform inspired estimator<br>
 
-</td><td valign="top">
-
-### Harmony
-
-**[Chroma](#chroma)** — PCP / NNLS pitch-class profiles<br>
-**[Chord](#chord)** — template matching + Viterbi smoothing<br>
-**[Key](#key)** — Krumhansl-Schmuckler key finding<br>
-
 </td></tr></table>
+
+> Chroma, chord and key detection moved to [@audio/mir](https://github.com/audiojs/mir) (`mir-chroma`, `mir-chord`, `mir-key`).
 
 
 ## Install
@@ -41,21 +35,13 @@ npm install @audio/pitch
 ## Usage
 
 ```js
-import { yin, mcleod, chroma, chord, key } from '@audio/pitch'
+import { yin, mcleod } from '@audio/pitch'
 
 let fs = 44100
 let frame = new Float32Array(2048)  // fill from your audio source
 
-// pitch
 let result = yin(frame, { fs })
 // → { freq: 440.1, clarity: 0.97 }  or  null
-
-// chroma → chord → key
-let c = chroma(frame, { fs, method: 'nnls' })
-let ch = chord(c)
-// → { root: 0, quality: 'maj', label: 'C', confidence: 0.92 }
-let k = key(c)
-// → { tonic: 0, mode: 'major', label: 'C', confidence: 0.85, scores: [...] }
 ```
 
 > Works in Node.js and browser. No Web Audio API needed — operates on raw `Float32Array` samples.
@@ -71,19 +57,17 @@ for (let i = 0; i + 2048 <= samples.length; i += hop) {
 }
 ```
 
-**Full pipeline** — pitch → chroma → chord → key on a sequence of frames:
+**Harmony pipeline** — chroma → chord → key lives in [@audio/mir](https://github.com/audiojs/mir):
 
 ```js
-import { chroma, chord, smoothChords, key } from '@audio/pitch'
+import { chroma, chord, smoothChords, key } from '@audio/mir'
 
 let frames = []
 for (let i = 0; i + 4096 <= samples.length; i += 2048) {
   frames.push(chroma(samples.subarray(i, i + 4096), { fs, method: 'nnls' }))
 }
 let chords = smoothChords(frames, { selfProb: 0.5 })
-// → [{ root: 0, quality: 'maj', label: 'C' }, ...]
 let k = key(frames)
-// → { tonic: 0, mode: 'major', label: 'C', confidence: 0.85, scores: [...] }
 ```
 
 
@@ -95,7 +79,9 @@ All pitch algorithms return `{ freq, clarity } | null`:
 - `clarity` — algorithm-specific confidence in `[0, 1]`
 - `null` — no periodic structure found (silence, noise, polyphony)
 
-Time-domain algorithms (YIN, McLeod, pYIN, autocorrelation, AMDF) accept any buffer length. Spectral algorithms (HPS, cepstrum, SWIPE, chroma) require power-of-2 length.
+Time-domain algorithms (YIN, McLeod, pYIN, autocorrelation, AMDF) accept any buffer length. Spectral algorithms (HPS, cepstrum, SWIPE) require power-of-2 length.
+
+Each algorithm is also installable standalone: `npm install @audio/pitch-yin` etc.
 
 
 ---
@@ -106,7 +92,7 @@ Time-domain algorithms (YIN, McLeod, pYIN, autocorrelation, AMDF) accept any buf
 **de Cheveigné & Kawahara, 2002.** The reference algorithm for monophonic pitch estimation. Most cited, most tested, most robust.
 
 ```js
-import yin from '@audio/pitch/yin.js'
+import yin from '@audio/pitch-yin'
 
 let result = yin(samples, { fs: 44100 })
 ```
@@ -127,7 +113,7 @@ let result = yin(samples, { fs: 44100 })
 **McLeod & Wyvill, 2005.** Normalized square difference with smarter peak picking. Handles smaller windows — good for vibrato and fast pitch changes.
 
 ```js
-import mcleod from '@audio/pitch/mcleod.js'
+import mcleod from '@audio/pitch-mcleod'
 
 let result = mcleod(samples, { fs: 44100 })
 ```
@@ -148,7 +134,7 @@ let result = mcleod(samples, { fs: 44100 })
 **Mauch & Dixon, 2014.** Probabilistic YIN — runs YIN at multiple thresholds weighted by a Beta(2, 18) prior, producing a distribution over candidate pitches instead of a single hard pick. More robust than YIN on ambiguous frames.
 
 ```js
-import pyin from '@audio/pitch/pyin.js'
+import pyin from '@audio/pitch-pyin'
 
 let result = pyin(samples, { fs: 44100 })
 // → { freq: 440.1, clarity: 0.92, candidates: [{ freq: 440.1, prob: 0.85 }, ...] }
@@ -170,7 +156,7 @@ let result = pyin(samples, { fs: 44100 })
 Normalized autocorrelation — the simplest pitch estimator. Educational baseline.
 
 ```js
-import autocorrelation from '@audio/pitch/autocorrelation.js'
+import autocorrelation from '@audio/pitch-autocorrelation'
 
 let result = autocorrelation(samples, { fs: 44100 })
 ```
@@ -191,7 +177,7 @@ let result = autocorrelation(samples, { fs: 44100 })
 **Ross et al., 1974.** Average Magnitude Difference Function — the classical predecessor to YIN. Measures average absolute difference between a signal and its delayed copy; minima indicate periodicity.
 
 ```js
-import amdf from '@audio/pitch/amdf.js'
+import amdf from '@audio/pitch-amdf'
 
 let result = amdf(samples, { fs: 44100 })
 ```
@@ -217,7 +203,7 @@ let result = amdf(samples, { fs: 44100 })
 **Schroeder, 1968.** Harmonic Product Spectrum — multiplies the spectrum by its downsampled copies so that harmonic peaks align at the fundamental. Robust to the missing-fundamental problem.
 
 ```js
-import hps from '@audio/pitch/hps.js'
+import hps from '@audio/pitch-hps'
 
 let result = hps(samples, { fs: 44100 })
 ```
@@ -242,7 +228,7 @@ let result = hps(samples, { fs: 44100 })
 **Noll, 1967.** Real cepstrum — $c(\tau) = \text{IFFT}(\log |\text{FFT}(x)|)$. A peak at quefrency $\tau$ corresponds to period $\tau$ in the time domain.
 
 ```js
-import cepstrum from '@audio/pitch/cepstrum.js'
+import cepstrum from '@audio/pitch-cepstrum'
 
 let result = cepstrum(samples, { fs: 44100 })
 ```
@@ -267,7 +253,7 @@ let result = cepstrum(samples, { fs: 44100 })
 Simplified single-window form: uses one FFT instead of the multi-resolution loudness pyramid of the original paper — sufficient for stationary windows.
 
 ```js
-import swipe from '@audio/pitch/swipe.js'
+import swipe from '@audio/pitch-swipe'
 
 let result = swipe(samples, { fs: 44100 })
 ```
@@ -284,124 +270,6 @@ let result = swipe(samples, { fs: 44100 })
 **Not for:** Very noisy or reverberant signals (single-window form lacks multi-resolution robustness of the full SWIPE').<br>
 **Ref:** Camacho & Harris, ["A sawtooth waveform inspired pitch estimator for speech and music"](https://doi.org/10.1121/1.2951592), JASA 2008.<br>
 **Requires:** Power-of-2 window length.
-
-
----
-
-
-## Chroma
-
-**Fujishima, 1999 (PCP) / Mauch & Dixon, 2010 (NNLS).** Chroma feature — a 12-D vector where each bin holds the energy attributed to one pitch class (C, C#, ..., B).
-
-```js
-import chroma from '@audio/pitch/chroma.js'
-
-// PCP — classical spectral folding
-let c = chroma(samples, { fs: 44100 })
-
-// NNLS — nonnegative least squares (cleaner for polyphonic audio)
-let c2 = chroma(samples, { fs: 44100, method: 'nnls' })
-```
-
-### PCP (default)
-
-Each spectral bin is mapped to its nearest pitch class and squared magnitudes are accumulated. Simple and fast.
-
-### NNLS
-
-Fits the observed $\sqrt{\text{spectrum}}$ as a nonnegative combination of synthetic pitch-tone profiles (fundamental plus geometrically decaying overtones, Gaussian lobes in log-frequency with σ = 0.5 semitones). Uses multiplicative NMF updates: $a \leftarrow a \cdot (D^\top s) / (D^\top D a + \varepsilon)$. Suppresses octave and harmonic confusion on polyphonic audio.
-
-Pitch dictionary covers MIDI 24–96 (C1–C7) with configurable harmonics per tone.
-
-| Param | Default | |
-|---|---|---|
-| `fs` | `44100` | Sample rate (Hz) |
-| `method` | `'pcp'` | `'pcp'` or `'nnls'` |
-| `minFreq` | `65` | Min frequency for PCP mapping (~C2) |
-| `maxFreq` | `2093` | Max frequency for PCP mapping (~C7) |
-| `harmonics` | `8` | Overtones per pitch (NNLS only) |
-| `iterations` | `30` | NMF iterations (NNLS only) |
-
-**Returns:** `Float64Array(12)`, L1-normalized.
-
-**Use when:** Building chord/key detectors, music information retrieval, audio fingerprinting. NNLS for polyphonic; PCP for speed.<br>
-**Ref (PCP):** Fujishima, ["Realtime chord recognition of musical sound"](https://doi.org/10.1109/ICMC.1999.318003), ICMC 1999.<br>
-**Ref (NNLS):** Mauch & Dixon, ["Approximate Note Transcription for the Improved Identification of Difficult Chords"](https://doi.org/10.5281/zenodo.1416026), ISMIR 2010.<br>
-**Requires:** Power-of-2 window length.
-
-
-## Chord
-
-**Fujishima, 1999 (templates) / Viterbi smoothing.** Classifies chroma frames as one of 24 major/minor triads via cosine similarity with binary templates.
-
-```js
-import chord, { TEMPLATES, smooth as smoothChords } from '@audio/pitch/chord.js'
-
-// single frame
-let c = chord(chromaVec)
-// → { root: 0, quality: 'maj', label: 'C', confidence: 0.92 }
-
-// smoothed sequence
-let chords = smoothChords(chromaFrames, { selfProb: 0.5 })
-// → [{ root: 0, quality: 'maj', label: 'C' }, ...]
-```
-
-### `chord(chromaVec, opts)`
-
-Cosine similarity against 24 binary templates (12 major + 12 minor triads). Returns the best match with confidence score.
-
-| Param | Default | |
-|---|---|---|
-| `minConfidence` | `0.3` | Below this, returns quality `'N'` (no chord) |
-
-**Returns:** `{ root, quality, label, confidence }` where quality is `'maj'`, `'min'`, or `'N'`.
-
-### `smooth(frames, opts)`
-
-Viterbi decoding with a sticky self-transition prior. Observation log-likelihood = 8 × cosine similarity (temperature 8 gives reasonably sharp distributions).
-
-| Param | Default | |
-|---|---|---|
-| `selfProb` | `0.5` | Self-transition probability (higher = smoother) |
-
-**Returns:** `{ root, quality, label }[]` — one chord per frame.
-
-### `TEMPLATES`
-
-Exported array of 24 chord templates: `{ root, quality, label, vec }` where `vec` is a `Float64Array(12)` with 1 on chord tones.
-
-**Use when:** Quick chord labeling from chroma features. Combine with NNLS chroma for best results.<br>
-**Ref:** Fujishima, ["Realtime chord recognition of musical sound"](https://doi.org/10.1109/ICMC.1999.318003), ICMC 1999.
-
-
-## Key
-
-**Krumhansl & Schmuckler.** Detects musical key from chroma via Pearson correlation against 24 rotated major/minor key profiles (Krumhansl-Kessler probe-tone ratings).
-
-```js
-import key, { KK_MAJOR, KK_MINOR } from '@audio/pitch/key.js'
-
-let k = key(chromaVec)
-// → { tonic: 0, mode: 'major', label: 'C', confidence: 0.85, scores: [...] }
-
-// from multiple frames (averages internally)
-let k2 = key(chromaFrames)
-```
-
-| Param | Default | |
-|---|---|---|
-| `profile` | `{ major: KK_MAJOR, minor: KK_MINOR }` | Custom key profiles |
-
-**Returns:** `{ tonic, mode, label, confidence, scores }` where `scores` is all 24 keys sorted descending.
-
-### Exported profiles
-
-- `KK_MAJOR` — Krumhansl-Kessler major profile: `[6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88]`
-- `KK_MINOR` — Krumhansl-Kessler minor profile: `[6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17]`
-
-**Use when:** Key detection for music analysis, automatic transposition, music information retrieval.<br>
-**Ref:** Krumhansl, [*Cognitive Foundations of Musical Pitch*](https://doi.org/10.1093/acprof:oso/9780195148367.001.0001), Oxford 1990.<br>
-**Ref:** Temperley, ["What's Key for Key?"](https://doi.org/10.1525/mp.1999.17.1.65), Music Perception 1999.
 
 
 ---
@@ -424,6 +292,7 @@ let k2 = key(chromaFrames)
 ## See also
 
 - [fourier-transform](https://github.com/scijs/fourier-transform) — FFT used by spectral algorithms
+- [mir](https://github.com/audiojs/mir) — chroma, chord, key, melody, structure, fingerprint
 - [beat](https://github.com/audiojs/beat) — onset detection, tempo estimation, beat tracking
 - [digital-filter](https://github.com/audiojs/digital-filter) — filter design and processing
 - [stretch](https://github.com/audiojs/stretch) — time stretching and pitch shifting
