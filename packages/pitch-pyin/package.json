@@ -1,6 +1,6 @@
 {
   "name": "@audio/pitch-pyin",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "pYIN — probabilistic YIN (Mauch & Dixon, 2014)",
   "type": "module",
   "sideEffects": false,
@@ -10,7 +10,8 @@
     "./package.json": "./package.json"
   },
   "files": [
-    "pyin.js"
+    "pyin.js",
+    "index.d.ts"
   ],
   "keywords": [
     "audio",
@@ -36,5 +37,7 @@
   },
   "publishConfig": {
     "access": "public"
-  }
+  },
+  "types": "index.d.ts",
+  "funding": "https://github.com/sponsors/audiojs"
 }

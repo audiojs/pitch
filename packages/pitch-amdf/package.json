@@ -1,6 +1,6 @@
 {
   "name": "@audio/pitch-amdf",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "AMDF (Average Magnitude Difference Function) pitch detection",
   "type": "module",
   "sideEffects": false,
@@ -10,7 +10,8 @@
     "./package.json": "./package.json"
   },
   "files": [
-    "amdf.js"
+    "amdf.js",
+    "index.d.ts"
   ],
   "keywords": [
     "audio",
@@ -36,5 +37,7 @@
   },
   "publishConfig": {
     "access": "public"
-  }
+  },
+  "types": "index.d.ts",
+  "funding": "https://github.com/sponsors/audiojs"
 }

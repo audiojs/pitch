@@ -1,6 +1,6 @@
 {
   "name": "@audio/pitch-cepstrum",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Cepstrum pitch detection (Noll, 1967)",
   "type": "module",
   "sideEffects": false,
@@ -10,7 +10,8 @@
     "./package.json": "./package.json"
   },
   "files": [
-    "cepstrum.js"
+    "cepstrum.js",
+    "index.d.ts"
   ],
   "dependencies": {
     "fourier-transform": "^2.2.0"
@@ -39,5 +40,7 @@
   },
   "publishConfig": {
     "access": "public"
-  }
+  },
+  "types": "index.d.ts",
+  "funding": "https://github.com/sponsors/audiojs"
 }

@@ -1,6 +1,6 @@
 {
   "name": "@audio/pitch-mcleod",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "McLeod Pitch Method (McLeod & Wyvill, 2005)",
   "type": "module",
   "sideEffects": false,
@@ -10,7 +10,8 @@
     "./package.json": "./package.json"
   },
   "files": [
-    "mcleod.js"
+    "mcleod.js",
+    "index.d.ts"
   ],
   "keywords": [
     "audio",
@@ -36,5 +37,7 @@
   },
   "publishConfig": {
     "access": "public"
-  }
+  },
+  "types": "index.d.ts",
+  "funding": "https://github.com/sponsors/audiojs"
 }
