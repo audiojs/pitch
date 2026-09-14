@@ -6,7 +6,10 @@
   "sideEffects": false,
   "main": "mcleod.js",
   "exports": {
-    ".": "./mcleod.js",
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./mcleod.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [

@@ -6,7 +6,10 @@
   "sideEffects": false,
   "main": "swipe.js",
   "exports": {
-    ".": "./swipe.js",
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./swipe.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [

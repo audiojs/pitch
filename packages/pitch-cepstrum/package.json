@@ -6,7 +6,10 @@
   "sideEffects": false,
   "main": "cepstrum.js",
   "exports": {
-    ".": "./cepstrum.js",
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./cepstrum.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [

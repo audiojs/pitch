@@ -4,11 +4,15 @@
   "type": "module",
   "description": "Pitch detection — umbrella for @audio/pitch-* atoms (YIN, pYIN, McLeod, HPS, cepstrum, SWIPE, autocorrelation, AMDF)",
   "exports": {
-    ".": "./index.js",
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./index.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
-    "index.js"
+    "index.js",
+    "*.d.ts"
   ],
   "scripts": {
     "test": "node test.js",
@@ -75,5 +79,6 @@
   "workspaces": [
     "packages/*"
   ],
-  "funding": "https://github.com/sponsors/audiojs"
+  "funding": "https://github.com/sponsors/audiojs",
+  "types": "./index.d.ts"
 }

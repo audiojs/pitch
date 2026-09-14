@@ -6,7 +6,10 @@
   "sideEffects": false,
   "main": "amdf.js",
   "exports": {
-    ".": "./amdf.js",
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./amdf.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [

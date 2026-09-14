@@ -6,7 +6,10 @@
   "sideEffects": false,
   "main": "autocorrelation.js",
   "exports": {
-    ".": "./autocorrelation.js",
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./autocorrelation.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [

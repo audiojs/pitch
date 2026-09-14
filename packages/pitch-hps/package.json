@@ -6,7 +6,10 @@
   "sideEffects": false,
   "main": "hps.js",
   "exports": {
-    ".": "./hps.js",
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./hps.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [

@@ -6,7 +6,10 @@
   "sideEffects": false,
   "main": "pyin.js",
   "exports": {
-    ".": "./pyin.js",
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./pyin.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [

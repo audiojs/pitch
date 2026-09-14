@@ -6,7 +6,10 @@
   "sideEffects": false,
   "main": "yin.js",
   "exports": {
-    ".": "./yin.js",
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./yin.js"
+    },
     "./package.json": "./package.json",
     "./audio": {
       "types": "./audio.d.ts",
