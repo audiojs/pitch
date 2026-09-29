@@ -1,5 +1,6 @@
-import test, { almost, ok, is } from 'tst'
+import test, { almost, ok, is, throws } from 'tst'
 import { yin, mcleod, autocorrelation, amdf, hps, cepstrum, swipe, pyin } from './index.js'
+import { track, notes } from '@audio/pitch-pyin'
 
 let fs = 44100
 
@@ -411,3 +412,221 @@ test('pyin — noise returns null or low clarity', () => {
   ok(!r || r.clarity < 0.5, 'noise: no confident pitch')
 })
 
+
+
+// =============================================================================
+// pYIN sequence stages: track (pitch HMM, Viterbi) and notes (Tony's note HMM)
+// =============================================================================
+
+// harmonic tone following f(t) Hz, phase integrated per sample: the label is f itself
+function tone(f, dur, sampleRate = fs) {
+  let n = Math.round(dur * sampleRate), d = new Float32Array(n), ph = 0
+  for (let i = 0; i < n; i++) {
+    d[i] = 0.4 * Math.sin(ph) + 0.2 * Math.sin(2 * ph) + 0.1 * Math.sin(3 * ph)
+    ph += 2 * Math.PI * f(i / sampleRate) / sampleRate
+  }
+  return d
+}
+
+// notes rendered independently and overlap-added, linear ADSR with @audio/synth-voice's defaults
+// (attack 0.01 s, decay 0.15 s, sustain 0.6, release 0.25 s)
+function played(list, dur) {
+  let d = new Float32Array(Math.round(dur * fs))
+  for (let { time, midi, duration } of list) {
+    let f = hz(midi), s0 = Math.round(time * fs), ph = 0
+    for (let i = 0; i < Math.round((duration + 0.25) * fs) && s0 + i < d.length; i++) {
+      let t = i / fs
+      let env = t < 0.01 ? t / 0.01 : t < 0.16 ? 1 - 0.4 * (t - 0.01) / 0.15 : t < duration ? 0.6 : 0.6 * Math.max(0, 1 - (t - duration) / 0.25)
+      d[s0 + i] += env * (0.4 * Math.sin(ph) + 0.2 * Math.sin(2 * ph))
+      ph += 2 * Math.PI * f / fs
+    }
+  }
+  return d
+}
+
+// sawtooth whose every other period drops to 0.4 during 30 ms bursts every 250 ms: the period
+// doubles there, so YIN frame by frame reports the octave below
+function shimmer(f, dur) {
+  let d = new Float32Array(Math.round(dur * fs))
+  for (let i = 0; i < d.length; i++) {
+    let t = i / fs, p = Math.floor(f * t)
+    d[i] = 0.4 * (2 * (f * t % 1) - 1) * (t % 0.25 < 0.03 && p % 2 ? 0.4 : 1)
+  }
+  return d
+}
+
+let hz = m => 440 * 2 ** ((m - 69) / 12)
+let cents = (a, b) => 1200 * Math.log2(a / b)
+let midiOf = f => 69 + 12 * Math.log2(f / 440)
+
+test('pyin track: a frame per hop, steady tone within 0.1 cent', () => {
+  let x = tone(() => 220, 1), r = track(x, { fs })
+  is(r.f0.length, 1 + Math.floor(x.length / 256), '1 + ⌊n / hop⌋ frames, hop 256 at 44.1 kHz (as librosa centred frames)')
+  almost(r.times[100], 100 * 256 / fs, 1e-12, 'frame i at i·hop')
+  let worst = 0
+  for (let i = 0; i < r.f0.length; i++) if (r.times[i] > 0.05 && r.times[i] < 0.95) worst = Math.max(worst, Math.abs(cents(r.f0[i], 220)))
+  ok(worst < 0.1, `max error ${worst.toFixed(3)} cents`)
+  ok(r.voiced.every(v => v === 1), 'every frame voiced')
+})
+
+test('pyin track: follows ±50 cent vibrato at 5.5 Hz within 3 cents', () => {
+  let f = t => hz(60) * 2 ** (50 / 1200 * Math.sin(2 * Math.PI * 5.5 * t))
+  let r = track(tone(f, 2), { fs }), worst = 0
+  // YIN compares its window with the one a period later: the estimate sits half a period after
+  // the frame time, averaged over the 23 ms window (≈ 2 cents of this modulation)
+  for (let i = 0; i < r.f0.length; i++) if (r.times[i] > 0.05 && r.times[i] < 1.95) worst = Math.max(worst, Math.abs(cents(r.f0[i], f(r.times[i] + 0.5 / r.f0[i]))))
+  ok(worst < 3, `max error ${worst.toFixed(2)} cents`)
+})
+
+test('pyin track: silence around a tone is unvoiced', () => {
+  let x = new Float32Array(fs), t = tone(() => 330, 0.4)
+  x.set(t, Math.round(0.3 * fs))
+  let r = track(x, { fs })
+  for (let i = 0; i < r.f0.length; i++) {
+    let s = r.times[i]
+    if (s < 0.25 || s > 0.75) ok(!r.voiced[i] && r.f0[i] === 0, `frame at ${s.toFixed(3)} s unvoiced`)
+    if (s > 0.35 && s < 0.65) ok(r.voiced[i] && Math.abs(cents(r.f0[i], 330)) < 1, `frame at ${s.toFixed(3)} s voiced`)
+  }
+  let silent = track(new Float32Array(fs), { fs })
+  ok(silent.voiced.every(v => !v), 'all-zero input: nothing voiced')
+})
+
+test('pyin track: holds the pitch through period-doubling bursts (octave errors)', () => {
+  let x = shimmer(220, 1), r = track(x, { fs }), framewise = 0, tracked = 0
+  for (let i = 4; i < r.f0.length - 4; i++) {
+    let c = x.subarray(i * 256 - 512, i * 256 + 1536), p = c.length === 2048 && pyin(c, { fs })
+    if (p && Math.abs(cents(p.freq, 110)) < 50) framewise++
+    if (Math.abs(cents(r.f0[i], 220)) > 50) tracked++
+  }
+  ok(framewise > 5, `frame by frame, ${framewise} frames pick the octave below`)
+  is(tracked, 0, 'the track never leaves 220 Hz')
+})
+
+test('pyin track: an empty pitch range is an error', () => {
+  throws(() => track(new Float32Array(4096), { fs, minFreq: 500, maxFreq: 100 }), RangeError)
+  is(track(new Float32Array(0), { fs }).f0.length, 0, 'no samples, no frames')
+})
+
+test('pyin track: streaming in odd blocks equals one call', () => {
+  let x = tone(t => 200 * 2 ** t, 1.5), a = track(x, { fs }), write = track({ fs }), f0 = []
+  for (let i = 0; i < x.length; i += 777) f0.push(...write(x.subarray(i, i + 777)).f0)
+  f0.push(...write().f0)
+  is(f0.length, a.f0.length)
+  ok(f0.every((v, i) => v === a.f0[i]), 'identical frames')
+})
+
+test('pyin notes: ±50 cent vibrato at 5.5 Hz stays one note', () => {
+  // centred 25 cents above C4, so rounding each frame would flip between C4 and C#4
+  let ns = notes(tone(t => hz(60.25) * 2 ** (50 / 1200 * Math.sin(2 * Math.PI * 5.5 * t)), 2), { fs })
+  is(ns.length, 1, 'one note')
+  is(ns[0].midi, 60)
+  ok(Math.abs(midiOf(ns[0].freq) - 60.25) < 0.1, `median pitch at the vibrato centre (${midiOf(ns[0].freq).toFixed(2)})`)
+  ok(ns[0].duration > 1.9, `spans the tone (${ns[0].duration.toFixed(2)} s)`)
+})
+
+test('pyin notes: a scoop into a note stays inside it', () => {
+  let ns = notes(tone(t => hz(60) * 2 ** (t < 0.08 ? -2 / 12 * (1 - t / 0.08) : 0), 1), { fs })
+  is(ns.length, 1)
+  is(ns[0].midi, 60)
+})
+
+test('pyin notes: glides: a fast one joins its two notes, a slow one steps up', () => {
+  // A3 → A4 over 0.2 s: the passage is shorter than a note (0.1 s per step), so two notes remain
+  let fast = notes(tone(t => 220 * 2 ** Math.min(1, Math.max(0, (t - 0.5) / 0.2)), 1.2), { fs })
+  is(fast.map(n => n.midi), [57, 69], 'A3 then A4')
+  ok(fast[1].time > 0.5 && fast[1].time < 0.75, `A4 starts inside or right after the glide (${fast[1].time.toFixed(3)} s)`)
+  // over 0.5 s it passes semitone regions long enough to be notes: a rising staircase A3 … A4
+  let slow = notes(tone(t => 220 * 2 ** Math.min(1, Math.max(0, (t - 0.5) / 0.5)), 1.5), { fs })
+  is(slow[0].midi, 57, 'starts on A3')
+  is(slow.at(-1).midi, 69, 'ends on A4')
+  ok(slow.every((n, i) => !i || n.midi > slow[i - 1].midi), `rising: ${slow.map(n => n.midi)}`)
+})
+
+test('pyin notes: a note played twice on one pitch is two notes', () => {
+  let ns = notes(played([{ time: 0, midi: 60, duration: 0.5 }, { time: 0.5, midi: 60, duration: 0.5 }], 1.1), { fs })
+  is(ns.map(n => n.midi), [60, 60])
+  ok(Math.abs(ns[1].time - 0.5) < 0.03, `second note at its attack (${ns[1].time.toFixed(3)} s)`)
+})
+
+test('pyin notes: period-doubling bursts give no octave notes', () => {
+  let ns = notes(shimmer(220, 2), { fs })
+  is(ns.map(n => n.midi), [57])
+})
+
+test('pyin notes: silence, short notes, streaming', () => {
+  is(notes(new Float32Array(fs), { fs }), [])
+  let x = new Float32Array(Math.round(1.2 * fs))
+  x.set(tone(() => hz(64), 0.06), Math.round(0.1 * fs))
+  x.set(tone(() => hz(67), 0.4), Math.round(0.5 * fs))
+  is(notes(x, { fs }).map(n => n.midi), [67], 'a 60 ms note is under the 0.1 s minimum')
+  is(notes(x, { fs, minDuration: 0.05 }).map(n => n.midi), [64, 67], 'minDuration 0.05 keeps it')
+  let write = notes({ fs }), got = []
+  for (let i = 0; i < x.length; i += 1000) got.push(...write(x.subarray(i, i + 1000)))
+  got.push(...write())
+  is(got, notes(x, { fs }), 'streamed notes equal one call')
+})
+
+// librosa 1.0: librosa.pyin(y, fmin=note_to_hz('C2'), fmax=note_to_hz('C7'), sr=44100), defaults
+// otherwise (frame 2048, hop 512), on the sequence below; runs of [frames, bin], bin b at
+// C2·2^(b/120) Hz, −1 unvoiced. librosa 1.0 zero-extends the frame in its difference function;
+// pYIN here keeps YIN's (eq. 6, de Cheveigné & Kawahara 2002), so edges move by a frame and the
+// reported pitch (librosa: bin centre) differs by up to a bin and a half.
+const LIBROSA = [[16, -1], [1, 192], [1, 191], [32, 190], [1, 189], [1, 192], [1, -1], [32, 230], [1, 233], [1, 254], [32, 260], [1, 261], [2, -1], [35, 310], [23, -1], [2, 281], [42, 280]]
+
+test('pyin track: agrees with librosa.pyin frame by frame', () => {
+  // 0.2 s silence, 196/247/294/392 Hz for 0.4 s each, 0.3 s silence, 330 Hz for 0.5 s; phase as numpy's cumsum
+  let seg = (f, dur) => Float32Array.from({ length: Math.round(dur * fs) }, (_, i) => {
+    let p = 2 * Math.PI * f * (i + 1) / fs
+    return f && 0.3 * (Math.sin(p) + 0.5 * Math.sin(2 * p) + 0.33 * Math.sin(3 * p) + 0.25 * Math.sin(4 * p))
+  })
+  let parts = [seg(0, 0.2), ...[196, 247, 294, 392].map(f => seg(f, 0.4)), seg(0, 0.3), seg(330, 0.5)]
+  let x = new Float32Array(parts.reduce((n, p) => n + p.length, 0)), o = 0
+  for (let p of parts) { x.set(p, o); o += p.length }
+  let C2 = 440 * 2 ** ((36 - 69) / 12), ref = LIBROSA.flatMap(([n, b]) => Array(n).fill(b))
+  let r = track(x, { fs, minFreq: C2, maxFreq: 440 * 2 ** ((96 - 69) / 12), frameSize: 2048, hopSize: 512 })
+  is(r.f0.length, ref.length, 'same frames')
+  let agree = 0, worst = 0
+  for (let i = 0; i < ref.length; i++) {
+    if (!!r.voiced[i] === ref[i] >= 0) agree++
+    if (r.voiced[i] && ref[i] >= 0) worst = Math.max(worst, Math.abs(cents(r.f0[i], C2 * 2 ** (ref[i] / 120))))
+  }
+  ok(agree >= ref.length - 3, `voicing agrees on ${agree} of ${ref.length} frames`)
+  ok(worst <= 15, `pitch within ${worst.toFixed(1)} cents where both are voiced`)
+})
+
+// stage 1 stub: one candidate at `f` Hz where the frame's centre half has signal; frames 2N long, centred
+function stage1(f, seen = []) {
+  return N => {
+    let run = frame => {
+      let e = 0
+      for (let i = N / 2; i < N / 2 + N / 2; i++) e += frame[i] * frame[i]
+      run.rms = Math.sqrt(e / (N / 2))
+      seen.push({ length: frame.length, at: frame[run.lead] })
+      if (!(run.rms > 1e-4)) return 0
+      run.freq[0] = f; run.prob[0] = 0.9
+      return 1
+    }
+    return Object.assign(run, { freq: new Float64Array(1), prob: new Float64Array(1), rms: 0, frameSize: 2 * N, lead: N })
+  }
+}
+
+test('pyin track: `candidates` replaces stage 1, on the same frames', () => {
+  let x = tone(() => 220, 1), H = 256, seen = []
+  x[100 * H] = 5                                              // frame 100's time: the stub sees it at run.lead
+  let r = track(x, { fs, candidates: stage1(330, seen) }), d = track(x, { fs })
+  is(r.times, d.times, 'frame times as the default')
+  ok(seen.every(s => s.length === 4096), 'frames of the stub\'s frameSize')
+  is(seen[100].at, 5, 'frame i centred on sample i·hop at run.lead')
+  let voiced = r.f0.filter(v => v > 0)
+  ok(voiced.length > 0.9 * r.f0.length && voiced.every(v => v === 330), `voiced at the stub's 330 Hz (${voiced.length} of ${r.f0.length})`)
+  is(track(x, { fs, candidates: undefined }).f0, d.f0, 'no candidates: the default')
+})
+
+test('pyin notes: `candidates` drives the note model', () => {
+  let x = new Float32Array(2 * fs)
+  x.set(tone(() => 220, 0.8), Math.round(0.5 * fs))
+  let n = notes(x, { fs, candidates: stage1(hz(64)) })
+  is(n.length, 1, 'one note')
+  is(n[0].midi, 64, 'at the stub\'s pitch')
+  ok(Math.abs(n[0].time - 0.5) < 0.05 && Math.abs(n[0].duration - 0.8) < 0.1, `where the tone is (${n[0].time.toFixed(3)} s, ${n[0].duration.toFixed(3)} s)`)
+})
