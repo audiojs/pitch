@@ -1,6 +1,6 @@
 {
   "name": "@audio/pitch-pyin",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "pYIN — probabilistic YIN (Mauch & Dixon, 2014)",
   "type": "module",
   "sideEffects": false,

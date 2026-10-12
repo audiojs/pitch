@@ -53,13 +53,16 @@ export function pitchModel(fs, hop, minFreq, maxFreq) {
 
 /**
  * Options with their defaults. The frame is the shortest power of 2 whose YIN window holds a period
- * of minFreq (2048 at 44.1 kHz), the hop ≈ 5.8 ms (256 at 44.1 kHz): the pYIN Vamp plugin's.
+ * of minFreq (2048 at 44.1 kHz), the hop ≈ 5.8 ms (256 at 44.1 kHz): the pYIN Vamp plugin's. Every
+ * frame is decided within `lag` frames of the last one read (viterbi.js), so a stream can run a fixed
+ * latency behind its input.
  */
-export function settings({ fs = 44100, minFreq = 50, maxFreq = 2000, frameSize, hopSize } = {}) {
+export function settings({ fs = 44100, minFreq = 50, maxFreq = 2000, frameSize, hopSize, lag = 4096 } = {}) {
   if (!(minFreq > 0 && maxFreq > minFreq)) throw new RangeError(`pyin: need 0 < minFreq < maxFreq, got ${minFreq}, ${maxFreq}`)
+  if (!(lag >= 1)) throw new RangeError(`pyin: need lag ≥ 1, got ${lag}`)
   frameSize ??= 2 ** Math.ceil(Math.log2(2 * fs / minFreq))
   hopSize ??= Math.round(fs * 256 / 44100)
-  return { fs, minFreq, maxFreq, frameSize, hopSize }
+  return { fs, minFreq, maxFreq, frameSize, hopSize, lag }
 }
 
 /** Frames of N samples every H, frame i from `lead` samples before sample i·H (N/4: YIN's window centred on it). */
@@ -95,7 +98,7 @@ export function framer(N, H, lead = N >> 2) {
  * run may set `frameSize` and `lead` (samples it reads, and how many of them precede the frame's time).
  */
 export function pitchTracker(opts, onFrame) {
-  let { fs, minFreq, maxFreq, frameSize, hopSize } = settings(opts)
+  let { fs, minFreq, maxFreq, frameSize, hopSize, lag } = settings(opts)
   let run = (opts?.candidates ?? candidates)(frameSize, fs, minFreq, maxFreq)
   let model = pitchModel(fs, hopSize, minFreq, maxFreq), { n } = model
   let obs = new Float64Array(2 * n), p = new Float64Array(n), floor = Math.log(TINY), queue = [], head = 0, base = 0
@@ -114,7 +117,7 @@ export function pitchTracker(opts, onFrame) {
     queue[f - base] = null; head++
     if (head > 1024) { queue = queue.slice(head); base += head; head = 0 }
     onFrame(r)
-  })
+  }, lag)
   let frames = framer(run.frameSize ?? frameSize, hopSize, run.lead)
   let analyze = (frame, i) => {
     let m = run(frame), v = 0

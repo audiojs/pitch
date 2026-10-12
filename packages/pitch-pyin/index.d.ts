@@ -47,6 +47,8 @@ export interface TrackOptions extends PyinOptions {
   frameSize?: number
   /** hop between frames (samples), default ≈ 5.8 ms: 256 at 44.1 kHz */
   hopSize?: number
+  /** frames within which every frame is decided, default 4096: a stream's decisions run at most this far behind its input */
+  lag?: number
   /** an observation model in place of YIN's candidates, such as @audio/neural-pitch's; default pYIN's own */
   candidates?: Candidates
 }

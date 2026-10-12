@@ -515,6 +515,23 @@ test('pyin track: streaming in odd blocks equals one call', () => {
   ok(f0.every((v, i) => v === a.f0[i]), 'identical frames')
 })
 
+// A stream with a fixed latency: every frame decided within `lag` frames of the last one read, whatever the blocks;
+// 24 frames (140 ms) still hold the octave through the bursts, 16 did not (5 frames an octave down)
+test('pyin track: a short lag decides every frame within it, octaves held', () => {
+  let x = shimmer(220, 1), whole = track(x, { fs, lag: 24 }), write = track({ fs, lag: 24 }), f0 = [], late = 0
+  for (let i = 0, k = 0; i < x.length; k++) {
+    let m = [17, 1000, 4096, 333][k % 4]
+    f0.push(...write(x.subarray(i, i += m)).f0)
+    // frames read so far: those whose 2048 samples, from 512 before their time, are all in
+    late = Math.max(late, Math.floor((Math.min(i, x.length) + 512 - 2048) / 256) + 1 - f0.length)
+  }
+  f0.push(...write().f0)
+  ok(late <= 24, `at most ${late} frames undecided`)
+  ok(f0.length === whole.f0.length && f0.every((v, i) => v === whole.f0[i]), 'odd blocks ≡ one call')
+  is(f0.filter((v, i) => i > 3 && i < f0.length - 4 && Math.abs(cents(v, 220)) > 50).length, 0, 'the track never leaves 220 Hz')
+  throws(() => track(x, { fs, lag: 0 }), RangeError)
+})
+
 test('pyin notes: ±50 cent vibrato at 5.5 Hz stays one note', () => {
   // centred 25 cents above C4, so rounding each frame would flip between C4 and C#4
   let ns = notes(tone(t => hz(60.25) * 2 ** (50 / 1200 * Math.sin(2 * Math.PI * 5.5 * t)), 2), { fs })
