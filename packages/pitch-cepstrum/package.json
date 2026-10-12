@@ -1,6 +1,6 @@
 {
   "name": "@audio/pitch-cepstrum",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Cepstrum pitch detection (Noll, 1967)",
   "type": "module",
   "sideEffects": false,

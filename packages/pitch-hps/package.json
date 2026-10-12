@@ -1,6 +1,6 @@
 {
   "name": "@audio/pitch-hps",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Harmonic Product Spectrum (Schroeder, 1968)",
   "type": "module",
   "sideEffects": false,

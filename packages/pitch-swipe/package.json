@@ -1,6 +1,6 @@
 {
   "name": "@audio/pitch-swipe",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "SWIPE′ — Sawtooth Waveform Inspired Pitch Estimator with prime harmonics",
   "type": "module",
   "sideEffects": false,
