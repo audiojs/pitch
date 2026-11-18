@@ -26,6 +26,8 @@ let result = yin(samples, { fs: 44100 })
 
 Pass the expected range when known: `yin(samples, { fs, minFreq: 60, maxFreq: 520 })`. Besides rejecting out-of-range results, `minFreq` lets YIN use a longer comparison window and improves low-pitch detection near onsets.
 
+`yinInto(data, k, d, cmndf)` is the same estimate allocating nothing, for a caller that runs it frame after frame: `k`, a `Float64Array` of 6, holds `fs`, `threshold`, `minFreq` and `maxFreq` (`NaN` where there is none) and takes the pitch and the clarity at 4 and 5 where it returns 1; `d` and `cmndf` are scratch `Float64Array`s of half the frame. The `./audio` processor runs it on 2048-sample frames.
+
 **Use when:** General-purpose monophonic pitch tracking — speech, singing, solo instruments. The most reliable choice when in doubt.<br>
 **Not for:** Polyphonic audio (returns dominant or null), real-time with hard latency budgets (needs full window).<br>
 **Ref:** de Cheveigné & Kawahara, ["YIN, a fundamental frequency estimator for speech and music"](https://doi.org/10.1121/1.1458024), JASA 2002.<br>

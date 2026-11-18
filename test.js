@@ -1,4 +1,5 @@
 import test, { almost, ok, is, throws } from 'tst'
+import { execFileSync } from 'node:child_process'
 import { yin, mcleod, autocorrelation, amdf, hps, cepstrum, swipe, pyin } from './index.js'
 import { track, notes } from '@audio/pitch-pyin'
 
@@ -159,6 +160,91 @@ test('yin — noise returns null or low clarity', () => {
   let r = yin(noise(2048), { fs })
   ok(!r || r.clarity < 0.5, 'noise: no confident pitch')
 })
+
+test('yin manifest: emits pitch and clarity inside the ranges it declares, as YIN reads each frame', async () => {
+  let { pitch: atom } = await import('./packages/pitch-yin/audio.js')
+  let { pitch: P, clarity: C } = atom.events.out
+  is(P.unit, 'Hz', 'pitch in Hz')
+  // a stub ctx collects what the manifest emits, its input fed in blocks of 128
+  let run = (x, sampleRate, threshold) => {
+    let got = { pitch: [], clarity: [] }
+    let proc = atom({ sampleRate, maxBlockSize: 128, maxChannels: 1, emit: (name, v) => got[name].push(v) })
+    for (let i = 0; i < x.length; i += 128) proc([[x.subarray(i, i + 128)]], [], { threshold: Float32Array.of(threshold) })
+    return got
+  }
+  // YIN itself on the same 2048-sample frames, kept where its pitch is inside the declared range
+  let direct = (x, sampleRate, threshold) => {
+    let want = { pitch: [], clarity: [] }
+    for (let i = 0; i + 2048 <= x.length; i += 2048) {
+      let r = yin(x.subarray(i, i + 2048), { fs: sampleRate, threshold: Math.fround(threshold) })
+      if (r && r.freq >= P.min && r.freq <= P.max) want.pitch.push(r.freq), want.clarity.push(r.clarity)
+    }
+    return want
+  }
+  let n = 2048 * 4
+  let pitched = { 'sine 100': [sine(100, n), fs], 'sine 440': [sine(440, n), fs], 'sine 1000': [sine(1000, n), fs], 'vibrato 440±20': [vibrato(440, 20, 5, n), fs], 'sines 220+440': [twosines(220, 440, n), fs], 'saw 110': [saw(110, n), fs], 'saw 880': [saw(880, n), fs], 'pluck 80.91 at 48 kHz': [pluck(80.91, n, 48000), 48000] }
+  let unpitched = { noise: [noise(n), fs], 'white noise': [whiteNoise(n), fs], silence: [silence(n), fs] }
+  // YIN reads a 21 kHz sine at 44.1 kHz as 23152 Hz, above Nyquist, and a 15 Hz sine at 8 kHz as 15 Hz: neither is emitted
+  let outside = { 'sine 21000': [sine(21000, n), fs], 'sine 15 at 8 kHz': [sine(15, n, 8000), 8000] }
+  let { min, max, default: def } = atom.params.threshold
+  for (let threshold of [min, def, max]) {
+    for (let [name, [x, sr]] of Object.entries({ ...pitched, ...unpitched, ...outside })) {
+      let got = run(x, sr, threshold)
+      ok(got.pitch.every(v => v >= P.min && v <= P.max) && got.clarity.every(v => v >= C.min && v <= C.max), `${name}, threshold ${threshold}: inside ${P.min}..${P.max} Hz, clarity ${C.min}..${C.max}`)
+      is(got, direct(x, sr, threshold), `${name}, threshold ${threshold}: YIN's own reading of each frame`)
+    }
+    for (let [name, [x, sr]] of Object.entries(pitched)) ok(run(x, sr, threshold).pitch.length > 0, `${name}, threshold ${threshold}: emits a pitch`)
+    for (let [name, [x, sr]] of Object.entries(outside)) {
+      let r = yin(x.subarray(0, 2048), { fs: sr, threshold: Math.fround(threshold) })
+      ok(r && (r.freq < P.min || r.freq > P.max) && !run(x, sr, threshold).pitch.length, `${name}, threshold ${threshold}: YIN reads ${r?.freq.toFixed(0)} Hz, not emitted`)
+    }
+  }
+})
+
+test('yin manifest: a block allocates nothing, a frame YIN reads included', () => {
+  // A child Node runs the manifest 2^17 blocks of 8 frames at 44.1 kHz (512 frames analyzed) after 2^15 warm ones, and
+  // reads the array-buffer stores and the young generation's used size before and after, with a 64 MB semi-space so no
+  // collection falls inside (checked), twice; the flags are @audio/compile's validator's. The reads themselves leave
+  // 2 to 5 KB in the young generation, so a processor that does nothing runs beside it and its bytes are taken off.
+  // Inputs: noise (no pitch), and a 21 kHz sine that YIN reads as 23152 Hz (the whole analysis, a pitch found, none
+  // emitted: an emitted number is a double handed to the host's emit, which boxes it where the engine does not inline
+  // that). The line is the validator's, 3/64 of a byte a block (6144 bytes a run), over the smaller of the two runs; a
+  // frame's two scratch arrays, made anew, are 2 × 8 KB of stores
+  let code = `
+    import v8 from 'node:v8'
+    import { PerformanceObserver } from 'node:perf_hooks'
+    let { pitch } = await import('@audio/pitch-yin/audio')
+    let young = () => v8.getHeapSpaceStatistics().find(s => s.space_name === 'new_space').space_used_size
+    let n = 1 << 16, B = n / 8, s = 3, out = {}
+    let inputs = { noise: Float32Array.from({ length: n }, () => 0.15 * ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 2147483648 - 1)), 'sine 21 kHz': Float32Array.from({ length: n }, (_, i) => 0.5 * Math.sin(2 * Math.PI * 21000 * i / 44100)) }
+    for (let [name, x] of [['nothing', inputs.noise], ...Object.entries(inputs)]) {
+      let views = Array.from({ length: B }, (_, k) => [[x.subarray(k * 8, k * 8 + 8)]]), O = [], params = { threshold: Float32Array.of(0.1) }, emitted = new Int32Array(1)
+      let proc = name === 'nothing' ? function nothing (i, o, p) {} : pitch({ sampleRate: 44100, maxBlockSize: 128, maxChannels: 1, params, emit: function emit () { emitted[0]++ } })
+      for (let i = 0; i < 1 << 15; i++) proc(views[i % B], O, params)
+      out[name] = []
+      for (let r = 0; r < 2; r++) {
+        globalThis.gc()
+        let gcs = 0, obs = new PerformanceObserver(l => { gcs += l.getEntries().length })
+        obs.observe({ entryTypes: ['gc'] })
+        let e0 = process.memoryUsage().arrayBuffers, y0 = young()
+        for (let i = 0; i < 1 << 17; i++) proc(views[i % B], O, params)
+        let y1 = young(), e1 = process.memoryUsage().arrayBuffers
+        await new Promise(r => setTimeout(r, 10))
+        obs.disconnect()
+        out[name].push({ young: y1 - y0, stores: e1 - e0, gcs, emitted: emitted[0] })
+      }
+    }
+    process.stdout.write(JSON.stringify(out))`
+  let flags = ['--expose-gc', '--no-concurrent-recompilation', '--no-allocation-site-pretenuring', '--no-concurrent-array-buffer-sweeping', '--min-semi-space-size=64', '--max-semi-space-size=64']
+  let { nothing, ...res } = JSON.parse(execFileSync(process.execPath, [...flags, '--input-type=module', '-e', code], { cwd: new URL('.', import.meta.url).pathname, encoding: 'utf8', timeout: 120000 }))
+  let floor = Math.min(...nothing.map(r => r.young + r.stores))
+  for (let [name, runs] of Object.entries(res)) {
+    is([...nothing, ...runs].map(r => r.gcs), [0, 0, 0, 0], `${name}: no collection inside the runs`)
+    is(runs[1].emitted, 0, `${name}: nothing emitted`)
+    let least = runs.reduce((a, r) => r.young + r.stores < a.young + a.stores ? r : a), bytes = least.young + least.stores - floor
+    ok(bytes <= 6144, `${name}: ${bytes} bytes in 2^17 blocks beyond a processor that does nothing (${least.young} young, ${least.stores} of stores, against ${floor}; ≤ 6144)`)
+  }
+}, { timeout: 120000 })
 
 
 // =============================================================================
