@@ -1,6 +1,6 @@
 {
   "name": "@audio/pitch",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "type": "module",
   "description": "Pitch detection — umbrella for @audio/pitch-* atoms (YIN, pYIN, McLeod, HPS, cepstrum, SWIPE, autocorrelation, AMDF)",
   "exports": {
@@ -8,23 +8,22 @@
       "types": "./index.d.ts",
       "default": "./index.js"
     },
-    "./package.json": "./package.json",
-    "./*": {
-      "types": "./members/*.d.ts",
-      "default": "./members/*.js"
-    }
+    "./audio": {
+      "types": "./audio.d.ts",
+      "default": "./audio.js"
+    },
+    "./package.json": "./package.json"
   },
   "files": [
     "index.js",
     "*.d.ts",
-    "members/"
+    "audio.js"
   ],
   "scripts": {
     "test": "node test.js",
     "test:all": "npm test --workspaces --if-present && npm test",
     "publish:all": "node ../compile/tools/tested.js && npm publish --workspaces && npm publish",
-    "members": "node scripts/members.js",
-    "prepublishOnly": "node ../compile/tools/tested.js && node scripts/members.js --check"
+    "prepublishOnly": "node ../compile/tools/tested.js"
   },
   "repository": {
     "type": "git",
