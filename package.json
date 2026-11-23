@@ -65,7 +65,7 @@
     "node": ">=18"
   },
   "dependencies": {
-    "@audio/pitch-yin": "^1.1.0",
+    "@audio/pitch-yin": "^1.1.1",
     "@audio/pitch-mcleod": "^1.0.2",
     "@audio/pitch-pyin": "^2.1.0",
     "@audio/pitch-hps": "^1.0.2",
